@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { BarChart3, FileDown } from 'lucide-react'
+import { BarChart3, FileDown, Briefcase } from 'lucide-react'
+import clsx from 'clsx'
 import { Header } from '../components/layout/Header'
 import { StatusBadge } from '../components/shared/StatusBadge'
 import { PageLoading } from '../components/shared/LoadingSpinner'
-import { usePlans, useDashboardStats } from '../hooks/useData'
+import { usePlans, useDashboardStats, useWorkDomains, useAllWorkStreams, useAllDailyTasks } from '../hooks/useData'
 import { useUIStore } from '../store/uiStore'
-import { STATUS_LABELS } from '@/domain/types'
-import type { ObjectiveStatus } from '@/domain/types'
+import { STATUS_LABELS, DAILY_TASK_STATUS_LABELS, DAILY_TASK_STATUS_COLORS } from '@/domain/types'
+import type { ObjectiveStatus, DailyTaskStatus } from '@/domain/types'
 import * as XLSX from 'xlsx'
 
 const STATUSES: ObjectiveStatus[] = ['niet_gestart', 'in_uitvoering', 'afgerond', 'uitgesteld', 'geannuleerd']
+const TASK_STATUSES: DailyTaskStatus[] = ['nieuw', 'bezig', 'wachtend', 'afgerond']
 
 export function Reports() {
   const { data: plans = [] } = usePlans()
@@ -17,7 +19,7 @@ export function Reports() {
   const activePlan = plans.find(p => p.id === activePlanId) ?? plans[0] ?? null
 
   const { data: stats, isLoading } = useDashboardStats(activePlan?.id ?? null)
-  const [reportType, setReportType] = useState<'status' | 'owner' | 'gantt'>('status')
+  const [reportType, setReportType] = useState<'status' | 'owner' | 'gantt' | 'dagelijkse-werking'>('status')
 
   const handleExport = () => {
     if (!stats) return
@@ -71,21 +73,29 @@ export function Reports() {
 
       <div className="p-6 space-y-6">
         {/* Report type selector */}
-        <div className="flex gap-2">
-          {(['status', 'owner', 'gantt'] as const).map(t => (
+        <div className="flex flex-wrap gap-2">
+          {([
+            ['status', 'Statusoverzicht'],
+            ['owner', 'Per verantwoordelijke'],
+            ['gantt', 'Tijdlijn (Gantt)'],
+            ['dagelijkse-werking', 'Dagelijkse werking'],
+          ] as const).map(([t, label]) => (
             <button
               key={t}
               onClick={() => setReportType(t)}
-              className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+              className={clsx(
+                'px-4 py-2 text-sm rounded-lg font-medium transition-colors',
                 reportType === t ? 'bg-primary-600 text-white' : 'border border-gray-300 hover:bg-gray-50'
-              }`}
+              )}
             >
-              {t === 'status' ? 'Statusoverzicht' : t === 'owner' ? 'Per verantwoordelijke' : 'Tijdlijn (Gantt)'}
+              {label}
             </button>
           ))}
         </div>
 
-        {isLoading ? <PageLoading /> : !stats ? (
+        {reportType === 'dagelijkse-werking' ? (
+          <DailyWorkReport />
+        ) : isLoading ? <PageLoading /> : !stats ? (
           <div className="text-center py-16 text-gray-400">
             <BarChart3 size={48} className="mx-auto mb-4 opacity-30" />
             <p>Geen data beschikbaar</p>
@@ -300,4 +310,136 @@ function statusBarColor(s: ObjectiveStatus): string {
     geannuleerd: 'bg-red-400',
   }
   return map[s]
+}
+
+function DailyWorkReport() {
+  const { data: domains = [], isLoading: loadingDomains } = useWorkDomains()
+  const { data: allStreams = [] } = useAllWorkStreams()
+  const { data: allTasks = [] } = useAllDailyTasks()
+
+  if (loadingDomains) return <PageLoading />
+
+  const today = new Date().toISOString().slice(0, 10)
+  const overdueTasks = allTasks.filter(t => t.deadline && t.deadline < today && t.status !== 'afgerond')
+
+  // Per-domain stats
+  const domainStats = domains.map(domain => {
+    const domainStreamIds = new Set(allStreams.filter(s => s.domainId === domain.id).map(s => s.id))
+    const tasks = allTasks.filter(t => domainStreamIds.has(t.streamId))
+    const streamCount = domainStreamIds.size
+    return { domain, streamCount, tasks }
+  })
+
+  // Capacity per person
+  const personMap: Record<string, { bezig: number; nieuw: number; wachtend: number; total: number }> = {}
+  for (const task of allTasks) {
+    for (const name of task.assignees) {
+      if (!personMap[name]) personMap[name] = { bezig: 0, nieuw: 0, wachtend: 0, total: 0 }
+      personMap[name].total++
+      if (task.status === 'bezig') personMap[name].bezig++
+      else if (task.status === 'nieuw') personMap[name].nieuw++
+      else if (task.status === 'wachtend') personMap[name].wachtend++
+    }
+  }
+  const people = Object.entries(personMap).sort((a, b) => b[1].total - a[1].total)
+
+  if (domains.length === 0) return (
+    <div className="text-center py-16 text-gray-400">
+      <Briefcase size={48} className="mx-auto mb-4 opacity-30" />
+      <p>Geen werkdomeinen beschikbaar</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* Global stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {TASK_STATUSES.map(status => (
+          <div key={status} className={clsx('rounded-xl px-4 py-3 text-center', DAILY_TASK_STATUS_COLORS[status])}>
+            <div className="text-2xl font-bold">{allTasks.filter(t => t.status === status).length}</div>
+            <div className="text-xs font-medium">{DAILY_TASK_STATUS_LABELS[status]}</div>
+          </div>
+        ))}
+      </div>
+
+      {overdueTasks.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          ⚠ <strong>{overdueTasks.length}</strong> {overdueTasks.length === 1 ? 'taak is' : 'taken zijn'} vervallen (deadline overschreden)
+        </div>
+      )}
+
+      {/* Per domain */}
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="px-5 py-3 border-b bg-gray-50">
+          <h3 className="font-semibold text-gray-800">Overzicht per werkdomein</h3>
+        </div>
+        <div className="divide-y">
+          {domainStats.map(({ domain, streamCount, tasks }) => {
+            const total = tasks.length
+            const done = tasks.filter(t => t.status === 'afgerond').length
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0
+            return (
+              <div key={domain.id} className="px-5 py-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="font-medium text-gray-900">{domain.name}</span>
+                    <span className="text-xs text-gray-500 ml-2">{streamCount} stromen · {total} taken</span>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">{pct}% afgerond</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-primary-600 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                  {TASK_STATUSES.map(s => {
+                    const cnt = tasks.filter(t => t.status === s).length
+                    return cnt > 0 ? (
+                      <span key={s} className={clsx('px-1.5 py-0.5 rounded', DAILY_TASK_STATUS_COLORS[s])}>
+                        {DAILY_TASK_STATUS_LABELS[s]}: {cnt}
+                      </span>
+                    ) : null
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Capacity per person */}
+      {people.length > 0 && (
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="px-5 py-3 border-b bg-gray-50">
+            <h3 className="font-semibold text-gray-800">Capaciteit per medewerker</h3>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                {['Naam', 'Bezig', 'Nieuw', 'Wachtend', 'Totaal'].map(h => (
+                  <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-gray-500">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {people.map(([name, c]) => (
+                <tr key={name} className="hover:bg-gray-50">
+                  <td className="px-4 py-2.5 font-medium text-gray-800">{name}</td>
+                  <td className="px-4 py-2.5">
+                    {c.bezig > 0 ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{c.bezig}</span> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {c.nieuw > 0 ? <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{c.nieuw}</span> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {c.wachtend > 0 ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{c.wachtend}</span> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 font-semibold text-gray-700">{c.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
 }

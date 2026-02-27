@@ -8,6 +8,10 @@ import type {
   AuditLog,
   User,
   FicheScope,
+  WorkDomain,
+  WorkStream,
+  DailyTask,
+  TaskItem,
 } from '@/domain/types'
 
 // ─── Repository interfaces ────────────────────────────────────────────────────
@@ -83,6 +87,41 @@ export interface AuthPort {
   canAccessPlan(planId: string): Promise<boolean>
 }
 
+// ─── Dagelijkse werking repositories ─────────────────────────────────────────
+
+export interface WorkDomainRepository {
+  getAll(): Promise<WorkDomain[]>
+  getById(id: string): Promise<WorkDomain | undefined>
+  save(domain: WorkDomain): Promise<void>
+  delete(id: string): Promise<void>
+}
+
+export interface WorkStreamRepository {
+  listByDomain(domainId: string): Promise<WorkStream[]>
+  listAll(): Promise<WorkStream[]>
+  getById(id: string): Promise<WorkStream | undefined>
+  save(stream: WorkStream): Promise<void>
+  delete(id: string): Promise<void>
+  deleteByDomain(domainId: string): Promise<void>
+}
+
+export interface DailyTaskRepository {
+  listByStream(streamId: string): Promise<DailyTask[]>
+  listByAssignee(name: string): Promise<DailyTask[]>
+  listAll(): Promise<DailyTask[]>
+  getById(id: string): Promise<DailyTask | undefined>
+  save(task: DailyTask): Promise<void>
+  delete(id: string): Promise<void>
+  deleteByStream(streamId: string): Promise<void>
+}
+
+export interface TaskItemRepository {
+  listByTask(taskId: string): Promise<TaskItem[]>
+  save(item: TaskItem): Promise<void>
+  delete(id: string): Promise<void>
+  deleteByTask(taskId: string): Promise<void>
+}
+
 // ─── Container ────────────────────────────────────────────────────────────────
 
 export interface Container {
@@ -95,4 +134,8 @@ export interface Container {
   audit: AuditRepository
   users: UserRepository
   auth: AuthPort
+  workDomains: WorkDomainRepository
+  workStreams: WorkStreamRepository
+  dailyTasks: DailyTaskRepository
+  taskItems: TaskItemRepository
 }

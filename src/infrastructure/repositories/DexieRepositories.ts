@@ -8,6 +8,10 @@ import type {
   FicheItemRepository,
   AuditRepository,
   UserRepository,
+  WorkDomainRepository,
+  WorkStreamRepository,
+  DailyTaskRepository,
+  TaskItemRepository,
 } from '@/application/ports/repositories'
 import type {
   Plan,
@@ -19,6 +23,10 @@ import type {
   AuditLog,
   User,
   FicheScope,
+  WorkDomain,
+  WorkStream,
+  DailyTask,
+  TaskItem,
 } from '@/domain/types'
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
@@ -200,5 +208,84 @@ export class DexieUserRepository implements UserRepository {
   }
   async delete(id: string): Promise<void> {
     await db.users.delete(id)
+  }
+}
+
+// ─── Dagelijkse werking ───────────────────────────────────────────────────────
+
+export class DexieWorkDomainRepository implements WorkDomainRepository {
+  async getAll(): Promise<WorkDomain[]> {
+    return db.workDomains.toArray()
+  }
+  async getById(id: string): Promise<WorkDomain | undefined> {
+    return db.workDomains.get(id)
+  }
+  async save(domain: WorkDomain): Promise<void> {
+    await db.workDomains.put(domain)
+  }
+  async delete(id: string): Promise<void> {
+    await db.workDomains.delete(id)
+  }
+}
+
+export class DexieWorkStreamRepository implements WorkStreamRepository {
+  async listByDomain(domainId: string): Promise<WorkStream[]> {
+    return db.workStreams.where('domainId').equals(domainId).toArray()
+  }
+  async listAll(): Promise<WorkStream[]> {
+    return db.workStreams.toArray()
+  }
+  async getById(id: string): Promise<WorkStream | undefined> {
+    return db.workStreams.get(id)
+  }
+  async save(stream: WorkStream): Promise<void> {
+    await db.workStreams.put(stream)
+  }
+  async delete(id: string): Promise<void> {
+    await db.workStreams.delete(id)
+  }
+  async deleteByDomain(domainId: string): Promise<void> {
+    await db.workStreams.where('domainId').equals(domainId).delete()
+  }
+}
+
+export class DexieDailyTaskRepository implements DailyTaskRepository {
+  async listByStream(streamId: string): Promise<DailyTask[]> {
+    return db.dailyTasks.where('streamId').equals(streamId).toArray()
+  }
+  async listByAssignee(name: string): Promise<DailyTask[]> {
+    const all = await db.dailyTasks.toArray()
+    return all.filter(t => t.assignees.includes(name))
+  }
+  async listAll(): Promise<DailyTask[]> {
+    return db.dailyTasks.toArray()
+  }
+  async getById(id: string): Promise<DailyTask | undefined> {
+    return db.dailyTasks.get(id)
+  }
+  async save(task: DailyTask): Promise<void> {
+    await db.dailyTasks.put(task)
+  }
+  async delete(id: string): Promise<void> {
+    await db.dailyTasks.delete(id)
+  }
+  async deleteByStream(streamId: string): Promise<void> {
+    await db.dailyTasks.where('streamId').equals(streamId).delete()
+  }
+}
+
+export class DexieTaskItemRepository implements TaskItemRepository {
+  async listByTask(taskId: string): Promise<TaskItem[]> {
+    const items = await db.taskItems.where('taskId').equals(taskId).toArray()
+    return items.sort((a, b) => a.sortOrder - b.sortOrder)
+  }
+  async save(item: TaskItem): Promise<void> {
+    await db.taskItems.put(item)
+  }
+  async delete(id: string): Promise<void> {
+    await db.taskItems.delete(id)
+  }
+  async deleteByTask(taskId: string): Promise<void> {
+    await db.taskItems.where('taskId').equals(taskId).delete()
   }
 }

@@ -7,6 +7,10 @@ import { FicheDetail } from './presentation/pages/FicheDetail'
 import { Reports } from './presentation/pages/Reports'
 import { ImportExport } from './presentation/pages/ImportExport'
 import { Admin } from './presentation/pages/Admin'
+import { WorkDomainsPage } from './presentation/pages/WorkDomainsPage'
+import { WorkDomainDetail } from './presentation/pages/WorkDomainDetail'
+import { MyTasksPage } from './presentation/pages/MyTasksPage'
+import { TeamOverviewPage } from './presentation/pages/TeamOverviewPage'
 
 export function App() {
   return (
@@ -19,6 +23,11 @@ export function App() {
         <Route path="rapporten" element={<Reports />} />
         <Route path="import-export" element={<ImportExport />} />
         <Route path="beheer" element={<Admin />} />
+        {/* Dagelijkse werking */}
+        <Route path="dagelijkse-werking" element={<WorkDomainsPage />} />
+        <Route path="dagelijkse-werking/mijn-taken" element={<MyTasksPage />} />
+        <Route path="dagelijkse-werking/team" element={<TeamOverviewPage />} />
+        <Route path="dagelijkse-werking/:domainId" element={<WorkDomainDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

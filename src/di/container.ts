@@ -7,6 +7,10 @@ import {
   DexieFicheItemRepository,
   DexieAuditRepository,
   DexieUserRepository,
+  DexieWorkDomainRepository,
+  DexieWorkStreamRepository,
+  DexieDailyTaskRepository,
+  DexieTaskItemRepository,
 } from '@/infrastructure/repositories/DexieRepositories'
 import { LocalAuthAdapter } from '@/infrastructure/auth/LocalAuthAdapter'
 import type { Container } from '@/application/ports/repositories'
@@ -22,4 +26,8 @@ export const container: Container = {
   audit: new DexieAuditRepository(),
   users: new DexieUserRepository(),
   auth: new LocalAuthAdapter(),
+  workDomains: new DexieWorkDomainRepository(),
+  workStreams: new DexieWorkStreamRepository(),
+  dailyTasks: new DexieDailyTaskRepository(),
+  taskItems: new DexieTaskItemRepository(),
 }

@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { db } from './PlanKompasDB'
-import type { Plan, StrategicObjective, OperationalObjective, Action, User } from '@/domain/types'
+import type { Plan, StrategicObjective, OperationalObjective, Action, User, WorkDomain, WorkStream, DailyTask } from '@/domain/types'
 
 const now = new Date().toISOString()
 const SYSTEM = 'system'
@@ -311,5 +311,137 @@ export async function seedDatabase() {
     await db.operationalObjectives.bulkAdd(ods)
     await db.actions.bulkAdd(actions)
     await db.users.bulkAdd(users)
+  })
+}
+
+export async function seedDailyWork() {
+  const count = await db.workDomains.count()
+  if (count > 0) return // Already seeded
+
+  const d1Id = uuid(), d2Id = uuid(), d3Id = uuid()
+  const s1Id = uuid(), s2Id = uuid(), s3Id = uuid()
+  const s4Id = uuid(), s5Id = uuid(), s6Id = uuid()
+
+  const domains: WorkDomain[] = [
+    {
+      id: d1Id,
+      name: 'Professionalisering',
+      description: 'Nascholing, coaching en competentieontwikkeling van medewerkers',
+      owner: 'Sofie Vermeersch',
+      status: 'actief',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: SYSTEM,
+    },
+    {
+      id: d2Id,
+      name: 'Leerlingenbegeleiding',
+      description: 'Intake, doorstroom en opvolging van cursisten',
+      owner: 'Jan Peeters',
+      status: 'actief',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: SYSTEM,
+    },
+    {
+      id: d3Id,
+      name: 'Kwaliteitszorg',
+      description: 'Opvolging, evaluatie en continue verbetering van processen',
+      owner: 'Admin Gebruiker',
+      status: 'actief',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: SYSTEM,
+    },
+  ]
+
+  const streams: WorkStream[] = [
+    { id: s1Id, domainId: d1Id, name: 'Nascholing plannen & opvolgen', type: 'periodiek', priority: 'hoog', verantwoordelijke: 'Sofie Vermeersch', createdAt: now, updatedAt: now },
+    { id: s2Id, domainId: d1Id, name: 'Intervisie & coaching', type: 'continu', priority: 'normaal', verantwoordelijke: 'Sofie Vermeersch', createdAt: now, updatedAt: now },
+    { id: s3Id, domainId: d2Id, name: 'Intake & doorstroom', type: 'continu', priority: 'hoog', verantwoordelijke: 'Jan Peeters', createdAt: now, updatedAt: now },
+    { id: s4Id, domainId: d2Id, name: 'Attestering', type: 'periodiek', priority: 'normaal', verantwoordelijke: 'Marie Claes', createdAt: now, updatedAt: now },
+    { id: s5Id, domainId: d3Id, name: 'Tevredenheidsmeting', type: 'periodiek', priority: 'normaal', verantwoordelijke: 'Admin Gebruiker', createdAt: now, updatedAt: now },
+    { id: s6Id, domainId: d3Id, name: 'Zelfevaluatietraject', type: 'periodiek', priority: 'hoog', verantwoordelijke: 'Admin Gebruiker', createdAt: now, updatedAt: now },
+  ]
+
+  const tasks: DailyTask[] = [
+    {
+      id: uuid(), streamId: s1Id,
+      title: 'Nascholingsbehoeften bevragen',
+      description: 'Jaarlijkse bevraging via online formulier',
+      assignees: ['Sofie Vermeersch'],
+      startDate: '2025-09-01', deadline: '2025-09-30',
+      status: 'afgerond', recurrence: 'geen', notes: 'Afgewerkt op 25 sept.',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s1Id,
+      title: 'Nascholingsplan 2025–2026 opstellen',
+      description: 'Op basis van bevragingsresultaten jaarplan opmaken',
+      assignees: ['Sofie Vermeersch'],
+      startDate: '2025-10-01', deadline: '2025-10-31',
+      status: 'bezig', recurrence: 'geen', notes: '',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s2Id,
+      title: 'Coachingsgesprekken inplannen',
+      description: 'Maandelijkse coachingsgesprekken met lesgevers',
+      assignees: ['Sofie Vermeersch', 'Jan Peeters'],
+      startDate: '2025-09-15', deadline: '2026-06-30',
+      status: 'bezig', recurrence: 'maandelijks', notes: '',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s3Id,
+      title: 'Intakegesprekken nieuwe cursisten semester 1',
+      description: 'Intake en niveaubepaling voor nieuwe cursisten',
+      assignees: ['Jan Peeters', 'Marie Claes'],
+      startDate: '2025-09-01', deadline: '2025-09-30',
+      status: 'afgerond', recurrence: 'geen', notes: '',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s3Id,
+      title: 'Doorstroomadvies semester 2',
+      description: 'Individueel doorstroomadvies voor cursisten die doorstromen',
+      assignees: ['Jan Peeters'],
+      startDate: '2026-01-15', deadline: '2026-02-15',
+      status: 'nieuw', recurrence: 'geen', notes: '',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s4Id,
+      title: 'Attesten opmaken juni 2026',
+      description: 'Alle attesten van afgestudeerden opmaken en versturen',
+      assignees: ['Marie Claes'],
+      startDate: '2026-06-01', deadline: '2026-06-30',
+      status: 'nieuw', recurrence: 'geen', notes: '',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s5Id,
+      title: 'Cursistentevredenheidsonderzoek',
+      description: 'Jaarlijks tevredenheidsonderzoek bij cursisten',
+      assignees: ['Admin Gebruiker'],
+      startDate: '2025-12-01', deadline: '2026-01-31',
+      status: 'wachtend', recurrence: 'geen', notes: 'Wacht op goedkeuring vragenlijst door directie',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+    {
+      id: uuid(), streamId: s6Id,
+      title: 'Zelfevaluatietraject opstarten',
+      description: 'Doorlopen van het zelfevaluatietraject conform GO!-kader',
+      assignees: ['Admin Gebruiker', 'Sofie Vermeersch'],
+      startDate: '2026-02-01', deadline: '2026-05-31',
+      status: 'nieuw', recurrence: 'geen', notes: '',
+      createdAt: now, updatedAt: now, createdBy: SYSTEM, updatedBy: '',
+    },
+  ]
+
+  await db.transaction('rw', [db.workDomains, db.workStreams, db.dailyTasks], async () => {
+    await db.workDomains.bulkAdd(domains)
+    await db.workStreams.bulkAdd(streams)
+    await db.dailyTasks.bulkAdd(tasks)
   })
 }

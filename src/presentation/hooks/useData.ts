@@ -12,6 +12,15 @@ import type {
   User,
   FicheScope,
   ObjectiveStatus,
+  WorkDomain,
+  WorkStream,
+  DailyTask,
+  DailyTaskStatus,
+  TaskItem,
+  WorkDomainStatus,
+  WorkStreamType,
+  WorkStreamPriority,
+  TaskRecurrence,
 } from '@/domain/types'
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
@@ -524,5 +533,286 @@ export function useUpdateActionStatus() {
       qc.invalidateQueries({ queryKey: ['actions', planId] })
       qc.invalidateQueries({ queryKey: ['dashboard-stats', planId] })
     },
+  })
+}
+
+// ─── Dagelijkse werking – Work Domains ────────────────────────────────────────
+
+export function useWorkDomains() {
+  return useQuery({
+    queryKey: ['workDomains'],
+    queryFn: () => container.workDomains.getAll(),
+  })
+}
+
+export function useWorkDomain(id: string | null) {
+  return useQuery({
+    queryKey: ['workDomain', id],
+    queryFn: () => container.workDomains.getById(id!),
+    enabled: !!id,
+  })
+}
+
+export function useSaveWorkDomain() {
+  const qc = useQueryClient()
+  const { currentUserId } = useAuthStore()
+  return useMutation({
+    mutationFn: async (data: Partial<WorkDomain> & { name: string }) => {
+      const now = new Date().toISOString()
+      const domain: WorkDomain = {
+        id: data.id ?? uuid(),
+        name: data.name,
+        description: data.description ?? '',
+        owner: data.owner ?? '',
+        status: data.status ?? 'actief',
+        createdAt: data.createdAt ?? now,
+        updatedAt: now,
+        createdBy: data.createdBy ?? currentUserId,
+      }
+      await container.workDomains.save(domain)
+      return domain
+    },
+    onSuccess: (domain) => {
+      qc.invalidateQueries({ queryKey: ['workDomains'] })
+      qc.invalidateQueries({ queryKey: ['workDomain', domain.id] })
+    },
+  })
+}
+
+export function useDeleteWorkDomain() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const streams = await container.workStreams.listByDomain(id)
+      for (const stream of streams) {
+        const tasks = await container.dailyTasks.listByStream(stream.id)
+        for (const task of tasks) {
+          await container.taskItems.deleteByTask(task.id)
+        }
+        await container.dailyTasks.deleteByStream(stream.id)
+      }
+      await container.workStreams.deleteByDomain(id)
+      await container.workDomains.delete(id)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workDomains'] })
+      qc.invalidateQueries({ queryKey: ['allWorkStreams'] })
+      qc.invalidateQueries({ queryKey: ['allDailyTasks'] })
+    },
+  })
+}
+
+// ─── Dagelijkse werking – Work Streams ────────────────────────────────────────
+
+export function useWorkStreams(domainId: string | null) {
+  return useQuery({
+    queryKey: ['workStreams', domainId],
+    queryFn: () => container.workStreams.listByDomain(domainId!),
+    enabled: !!domainId,
+  })
+}
+
+export function useAllWorkStreams() {
+  return useQuery({
+    queryKey: ['allWorkStreams'],
+    queryFn: () => container.workStreams.listAll(),
+  })
+}
+
+export function useSaveWorkStream() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: Partial<WorkStream> & { domainId: string; name: string }) => {
+      const now = new Date().toISOString()
+      const stream: WorkStream = {
+        id: data.id ?? uuid(),
+        domainId: data.domainId,
+        name: data.name,
+        type: data.type ?? 'continu',
+        priority: data.priority ?? 'normaal',
+        verantwoordelijke: data.verantwoordelijke ?? '',
+        createdAt: data.createdAt ?? now,
+        updatedAt: now,
+      }
+      await container.workStreams.save(stream)
+      return stream
+    },
+    onSuccess: (stream) => {
+      qc.invalidateQueries({ queryKey: ['workStreams', stream.domainId] })
+      qc.invalidateQueries({ queryKey: ['allWorkStreams'] })
+    },
+  })
+}
+
+export function useDeleteWorkStream() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, domainId }: { id: string; domainId: string }) => {
+      const tasks = await container.dailyTasks.listByStream(id)
+      for (const task of tasks) {
+        await container.taskItems.deleteByTask(task.id)
+      }
+      await container.dailyTasks.deleteByStream(id)
+      await container.workStreams.delete(id)
+      return domainId
+    },
+    onSuccess: (domainId) => {
+      qc.invalidateQueries({ queryKey: ['workStreams', domainId] })
+      qc.invalidateQueries({ queryKey: ['allWorkStreams'] })
+      qc.invalidateQueries({ queryKey: ['allDailyTasks'] })
+    },
+  })
+}
+
+// ─── Dagelijkse werking – Daily Tasks ─────────────────────────────────────────
+
+export function useDailyTasks(streamId: string | null) {
+  return useQuery({
+    queryKey: ['dailyTasks', streamId],
+    queryFn: () => container.dailyTasks.listByStream(streamId!),
+    enabled: !!streamId,
+  })
+}
+
+export function useAllDailyTasks() {
+  return useQuery({
+    queryKey: ['allDailyTasks'],
+    queryFn: () => container.dailyTasks.listAll(),
+  })
+}
+
+export function useDailyTasksByAssignee(name: string | null) {
+  return useQuery({
+    queryKey: ['dailyTasksByAssignee', name],
+    queryFn: () => container.dailyTasks.listByAssignee(name!),
+    enabled: !!name,
+  })
+}
+
+export function useSaveDailyTask() {
+  const qc = useQueryClient()
+  const { currentUserId } = useAuthStore()
+  return useMutation({
+    mutationFn: async (data: Partial<DailyTask> & { streamId: string; title: string }) => {
+      const now = new Date().toISOString()
+      const task: DailyTask = {
+        id: data.id ?? uuid(),
+        streamId: data.streamId,
+        title: data.title,
+        description: data.description ?? '',
+        assignees: data.assignees ?? [],
+        startDate: data.startDate ?? '',
+        deadline: data.deadline ?? '',
+        status: data.status ?? 'nieuw',
+        recurrence: data.recurrence ?? 'geen',
+        notes: data.notes ?? '',
+        sdId: data.sdId,
+        odId: data.odId,
+        actionId: data.actionId,
+        createdAt: data.createdAt ?? now,
+        updatedAt: now,
+        createdBy: data.createdBy ?? currentUserId,
+        updatedBy: currentUserId,
+      }
+      await container.dailyTasks.save(task)
+      await container.audit.log({
+        id: uuid(),
+        entityType: 'dailyTask',
+        entityId: task.id,
+        action: data.id ? 'update' : 'create',
+        changes: {},
+        performedBy: currentUserId,
+        performedAt: now,
+      })
+      return task
+    },
+    onSuccess: (task) => {
+      qc.invalidateQueries({ queryKey: ['dailyTasks', task.streamId] })
+      qc.invalidateQueries({ queryKey: ['allDailyTasks'] })
+      qc.invalidateQueries({ queryKey: ['dailyTasksByAssignee'] })
+    },
+  })
+}
+
+export function useDeleteDailyTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, streamId }: { id: string; streamId: string }) => {
+      await container.taskItems.deleteByTask(id)
+      await container.dailyTasks.delete(id)
+      return streamId
+    },
+    onSuccess: (streamId) => {
+      qc.invalidateQueries({ queryKey: ['dailyTasks', streamId] })
+      qc.invalidateQueries({ queryKey: ['allDailyTasks'] })
+      qc.invalidateQueries({ queryKey: ['dailyTasksByAssignee'] })
+    },
+  })
+}
+
+export function useUpdateDailyTaskStatus() {
+  const qc = useQueryClient()
+  const { currentUserId } = useAuthStore()
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: DailyTaskStatus; streamId: string }) => {
+      const now = new Date().toISOString()
+      const task = await container.dailyTasks.getById(id)
+      if (task) {
+        await container.dailyTasks.save({ ...task, status, updatedAt: now, updatedBy: currentUserId })
+        await container.audit.log({
+          id: uuid(), entityType: 'dailyTask', entityId: id,
+          action: 'status_change', changes: { status },
+          performedBy: currentUserId, performedAt: now,
+        })
+      }
+      return task?.streamId ?? ''
+    },
+    onSuccess: (streamId) => {
+      if (streamId) qc.invalidateQueries({ queryKey: ['dailyTasks', streamId] })
+      qc.invalidateQueries({ queryKey: ['allDailyTasks'] })
+      qc.invalidateQueries({ queryKey: ['dailyTasksByAssignee'] })
+    },
+  })
+}
+
+// ─── Dagelijkse werking – Task Items ──────────────────────────────────────────
+
+export function useTaskItems(taskId: string | null) {
+  return useQuery({
+    queryKey: ['taskItems', taskId],
+    queryFn: () => container.taskItems.listByTask(taskId!),
+    enabled: !!taskId,
+  })
+}
+
+export function useSaveTaskItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: Partial<TaskItem> & { taskId: string; title: string }) => {
+      const item: TaskItem = {
+        id: data.id ?? uuid(),
+        taskId: data.taskId,
+        title: data.title,
+        status: data.status ?? 'nieuw',
+        uitvoerder: data.uitvoerder ?? '',
+        sortOrder: data.sortOrder ?? 0,
+      }
+      await container.taskItems.save(item)
+      return item
+    },
+    onSuccess: (item) => {
+      qc.invalidateQueries({ queryKey: ['taskItems', item.taskId] })
+    },
+  })
+}
+
+export function useDeleteTaskItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, taskId }: { id: string; taskId: string }) => {
+      await container.taskItems.delete(id)
+      return taskId
+    },
+    onSuccess: (taskId) => qc.invalidateQueries({ queryKey: ['taskItems', taskId] }),
   })
 }
