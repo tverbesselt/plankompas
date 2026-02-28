@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // DEV MODE – open access. Replace with proper auth rules before production.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

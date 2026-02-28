@@ -26,28 +26,59 @@ import {
   HttpDailyTaskRepository,
   HttpTaskItemRepository,
 } from '@/infrastructure/api/HttpRepositories'
+import {
+  FirestorePlanRepository,
+  FirestoreSdRepository,
+  FirestoreOdRepository,
+  FirestoreActionRepository,
+  FirestoreFicheRepository,
+  FirestoreFicheItemRepository,
+  FirestoreAuditRepository,
+  FirestoreUserRepository,
+  FirestoreWorkDomainRepository,
+  FirestoreWorkStreamRepository,
+  FirestoreDailyTaskRepository,
+  FirestoreTaskItemRepository,
+} from '@/infrastructure/firebase/FirestoreRepositories'
 import { LocalAuthAdapter } from '@/infrastructure/auth/LocalAuthAdapter'
 import type { Container } from '@/application/ports/repositories'
 
 /**
  * Composition root.
  *
- * By default the app uses Dexie (IndexedDB) – works offline, no server needed.
- *
- * To use the local REST API instead (api/server.ts on port 3001), create
- * a file `.env.local` in the project root containing:
- *
- *   VITE_API_URL=http://localhost:3001
- *
- * Then start both servers:
- *   npm run dev       (Vite frontend on port 5173)
- *   npm run api       (Express API on port 3001)
+ * Priority:
+ *   1. VITE_USE_FIRESTORE=true  → Cloud Firestore (online database)
+ *   2. VITE_API_URL set         → Local REST API (api/server.ts on port 3001)
+ *   3. Default                  → Dexie (IndexedDB – offline, no server)
  */
-const useApi = !!(import.meta.env.VITE_API_URL as string | undefined)
+const useFirestore = import.meta.env.VITE_USE_FIRESTORE === 'true'
+const useApi = !useFirestore && !!(import.meta.env.VITE_API_URL as string | undefined)
 
-export const container: Container = useApi
-  ? {
-      // ── HTTP repositories (REST API backend) ─────────────────────────────────
+function buildContainer(): Container {
+  if (useFirestore) {
+    // ── Firestore repositories (Cloud Firestore) ──────────────────────────────
+    const users = new FirestoreUserRepository()
+    return {
+      plans:       new FirestorePlanRepository(),
+      sd:          new FirestoreSdRepository(),
+      od:          new FirestoreOdRepository(),
+      actions:     new FirestoreActionRepository(),
+      fiches:      new FirestoreFicheRepository(),
+      ficheItems:  new FirestoreFicheItemRepository(),
+      audit:       new FirestoreAuditRepository(),
+      users,
+      auth:        new LocalAuthAdapter(users),
+      workDomains: new FirestoreWorkDomainRepository(),
+      workStreams:  new FirestoreWorkStreamRepository(),
+      dailyTasks:  new FirestoreDailyTaskRepository(),
+      taskItems:   new FirestoreTaskItemRepository(),
+    }
+  }
+
+  if (useApi) {
+    // ── HTTP repositories (REST API backend) ──────────────────────────────────
+    const users = new HttpUserRepository()
+    return {
       plans:       new HttpPlanRepository(),
       sd:          new HttpSdRepository(),
       od:          new HttpOdRepository(),
@@ -55,26 +86,32 @@ export const container: Container = useApi
       fiches:      new HttpFicheRepository(),
       ficheItems:  new HttpFicheItemRepository(),
       audit:       new HttpAuditRepository(),
-      users:       new HttpUserRepository(),
-      auth:        new LocalAuthAdapter(),
+      users,
+      auth:        new LocalAuthAdapter(users),
       workDomains: new HttpWorkDomainRepository(),
       workStreams:  new HttpWorkStreamRepository(),
       dailyTasks:  new HttpDailyTaskRepository(),
       taskItems:   new HttpTaskItemRepository(),
     }
-  : {
-      // ── Dexie repositories (IndexedDB – default) ─────────────────────────────
-      plans:       new DexiePlanRepository(),
-      sd:          new DexieSdRepository(),
-      od:          new DexieOdRepository(),
-      actions:     new DexieActionRepository(),
-      fiches:      new DexieFicheRepository(),
-      ficheItems:  new DexieFicheItemRepository(),
-      audit:       new DexieAuditRepository(),
-      users:       new DexieUserRepository(),
-      auth:        new LocalAuthAdapter(),
-      workDomains: new DexieWorkDomainRepository(),
-      workStreams:  new DexieWorkStreamRepository(),
-      dailyTasks:  new DexieDailyTaskRepository(),
-      taskItems:   new DexieTaskItemRepository(),
-    }
+  }
+
+  // ── Dexie repositories (IndexedDB – default) ─────────────────────────────
+  const users = new DexieUserRepository()
+  return {
+    plans:       new DexiePlanRepository(),
+    sd:          new DexieSdRepository(),
+    od:          new DexieOdRepository(),
+    actions:     new DexieActionRepository(),
+    fiches:      new DexieFicheRepository(),
+    ficheItems:  new DexieFicheItemRepository(),
+    audit:       new DexieAuditRepository(),
+    users,
+    auth:        new LocalAuthAdapter(users),
+    workDomains: new DexieWorkDomainRepository(),
+    workStreams:  new DexieWorkStreamRepository(),
+    dailyTasks:  new DexieDailyTaskRepository(),
+    taskItems:   new DexieTaskItemRepository(),
+  }
+}
+
+export const container: Container = buildContainer()
