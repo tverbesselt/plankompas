@@ -130,8 +130,8 @@ export function TeamOverviewPage() {
   return (
     <div>
       <Header
-        title="Teamoverzicht"
-        subtitle="Taakverdeling over het team"
+        title="Gebruikersoverzicht"
+        subtitle="Gebruikers en hun taakverdeling"
       />
       <div className="p-6">
         {/* Summary */}

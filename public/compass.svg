@@ -1,10 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
   <rect width="32" height="32" rx="7" fill="#197a77"/>
+
+  <!-- Compass circle outline -->
+  <circle cx="16" cy="16" r="11" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+
+  <!-- Compass needle – north (white) -->
+  <polygon points="16,5 18.5,16 16,14 13.5,16" fill="white"/>
+  <!-- Compass needle – south (semi-transparent white) -->
+  <polygon points="16,27 18.5,16 16,18 13.5,16" fill="rgba(255,255,255,0.45)"/>
+
+  <!-- Cardinal dot -->
+  <circle cx="16" cy="16" r="2" fill="white"/>
+
+  <!-- N label -->
   <text
-    x="16" y="22"
-    font-family="Arial Black, Arial, sans-serif"
-    font-size="15" font-weight="900"
+    x="16" y="4.5"
+    font-family="Arial, sans-serif"
+    font-size="4" font-weight="700"
     fill="white" text-anchor="middle"
-    letter-spacing="-0.5"
-  >GO!</text>
+  >N</text>
 </svg>

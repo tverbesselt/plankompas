@@ -42,3 +42,9 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# API local database (persoonlijke data, nooit committen)
+api/db.json
+
+# Firebase deploy artifacts
+.firebase/

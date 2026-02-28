@@ -27,7 +27,7 @@ const mainNavItems = [
 const dailyWorkItems = [
   { to: '/dagelijkse-werking', icon: Briefcase, label: 'Werkdomeinen', end: true },
   { to: '/dagelijkse-werking/mijn-taken', icon: CheckSquare, label: 'Mijn taken', end: false },
-  { to: '/dagelijkse-werking/team', icon: Users, label: 'Teamoverzicht', end: false },
+  { to: '/dagelijkse-werking/team', icon: Users, label: 'Gebruikersoverzicht', end: false },
 ]
 
 export function Sidebar() {
